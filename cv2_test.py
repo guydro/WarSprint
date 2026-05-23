@@ -18,7 +18,7 @@ def test_camera(cap):
         image = Image.fromarray(frame_rgb)
         image = ImageOps.expand(image, border=(0, 100, 0, 0), fill=(255, 255, 255))
         draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype("FONTS/arial.ttf", 36)
+        font = ImageFont.truetype("FONTS/arial.ttf", 30)
         text1 = "לחצו Y אם אתם מרוצים מהתמונה, ו-N אחרת."
         text2 = "לאחר שאתם מאשרים, תכתבו את השם שלכם בקונסולה."
         draw.text((0, 0), text1[::-1]+"\n"+text2[::-1], (0, 0, 0), font=font)
@@ -28,7 +28,7 @@ def test_camera(cap):
         key = cv2.waitKey(0)  # waits indefinitely until a key is pressed
         cv2.destroyAllWindows()
 
-    cv2.imwrite(f"./images/{input("Please enter your name, after that please make a push and make sure it was uploaded to github. ")}.png", frame)
+    cv2.imwrite(f"./images/{input("Please enter your name, after that please make a push and make sure it was uploaded to github: ")}.png", frame)
 
 
 
