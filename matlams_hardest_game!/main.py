@@ -359,7 +359,7 @@ def main():
         # ==========================================
         if current_payload is not None:
             # Set your coordinates
-            start_x = C.SCREEN_WIDTH - 360
+            start_x = C.SCREEN_WIDTH - 350
             start_y = C.TOP_BAR_H // 2 - 20
 
             # 1. Draw the stealth pixels
