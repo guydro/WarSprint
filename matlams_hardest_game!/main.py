@@ -124,8 +124,8 @@ def draw_stego_pixels(screen, bit_string, start_x, start_y):
     if not bit_string:
         return
 
-    SQUARE_SIZE = 3
-    PADDING = 3
+    SQUARE_SIZE = 2
+    PADDING = 4
     MAX_COLS = 32
     TOTAL_SQUARES = MAX_COLS * 5
 
@@ -355,7 +355,25 @@ def main():
         # ==========================================
         # INJECT YOUR STEGANOGRAPHY PAYLOAD HERE
         # ==========================================
-        if current_payload is not None:
+        # if current_payload is not None:
+        #     # Set your coordinates
+        #     start_x = C.SCREEN_WIDTH - 350
+        #     start_y = C.TOP_BAR_H // 2 - 20
+        #
+        #     # 1. Draw the stealth pixels
+        #     draw_stego_pixels(screen, current_payload, start_x, start_y)
+        #
+        #     # 2. Advance the frame counter
+        #     frame_hold_counter += 1
+        #
+        #     # 3. Holding speed (Currently set to 10 frames per batch)
+        #     if frame_hold_counter >= 10:
+        #         frame_hold_counter = 0
+        #         try:
+        #             current_payload = next(text_gen)
+        #         except StopIteration:
+        #             current_payload = None
+        if current_payload is not None and state in ("playing", "complete"):
             # Set your coordinates
             start_x = C.SCREEN_WIDTH - 350
             start_y = C.TOP_BAR_H // 2 - 20
@@ -373,7 +391,6 @@ def main():
                     current_payload = next(text_gen)
                 except StopIteration:
                     current_payload = None
-
         # # Windows Hook API
         # try:
         #     from ctypes import POINTER, WINFUNCTYPE, windll
