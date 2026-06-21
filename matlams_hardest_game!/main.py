@@ -254,5 +254,9 @@ def get_text():
     return string
 
 
+def get_info(origin, frame, screen_type):
+    return
+
+
 if __name__ == "__main__":
     main()
