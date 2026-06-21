@@ -281,7 +281,7 @@ def main():
         from ctypes.wintypes import BOOL, HWND, RECT
 
         my_rect = pygame.Rect(0, 0, 8, 8)
-        pygame.draw.rect(screen, (255, 0, 0), my_rect)
+        #pygame.draw.rect(screen, (255, 0, 0), my_rect)
         # TODO
         from ctypes import POINTER, WINFUNCTYPE, windll
         from ctypes.wintypes import BOOL, HWND, RECT
