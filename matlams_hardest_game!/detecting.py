@@ -5,12 +5,12 @@ import numpy as np
 # שלב 1: הגדרות נתיבים, קבצים ופרמטרים של המשחק
 # =========================================================================
 # הכנס כאן את הנתיב לקובץ הווידאו שלך
-VIDEO_PATH = "path/to/your/game_video.mp4"
+VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 20-49-41.mp4"
 
 # נתיבים לתמונות הטמפלייט (החלקים שנגזור לצורך זיהוי)
-TEMPLATE_MENU_PATH = "template_menu.png"
-TEMPLATE_DEATHS_PATH = "template_deaths.png"
-TEMPLATE_TITLE_PATH = "template_title.png"
+TEMPLATE_MENU_PATH = r"C:\Users\TLP\Videos\template_title.png"
+TEMPLATE_DEATHS_PATH = r"C:\Users\TLP\Videos\template_title.png"
+TEMPLATE_TITLE_PATH = r"C:\Users\TLP\Videos\template_menu.png"
 
 # מימדי המשחק המקוריים (לפי ה-Config של המשחק שלך, שנה במידת הצורך)
 SCREEN_WIDTH = 800  # דוגמה, שנה לרוחב האמיתי של המשחק בקוד
@@ -52,7 +52,7 @@ if not cap.isOpened():
 print("Starting detection loop. Press 'q' to exit.")
 
 while cap.isOpened():
-    ret, frame = cap.get()
+    ret, frame = cap.read()
     if not ret:
         print("End of video or cannot read frame.")
         break
