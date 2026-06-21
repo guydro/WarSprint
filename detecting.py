@@ -1,137 +1,134 @@
 import cv2
 import numpy as np
 
-# =========================================================================
-# הגדרות נתיבים, קבצים ופרמטרים של המשחק
-# =========================================================================
-VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 22-46-43.mp4"
-
-TEMPLATE_MENU_PATH = r".\reference_files\template_title.png"
-TEMPLATE_DEATHS_PATH = r".\reference_files\template_title.png"
-TEMPLATE_TITLE_PATH = r".\reference_files\template_menu.png"
-
-# מידות הווידאו והמשחק
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
-SCREEN_WIDTH = 1278  # הותאם ל-1280
-SCREEN_HEIGHT = 800  # הותאם ל-800
-TOP_BAR_H = 40
-
-THRESHOLD = 0.75
-
-# טעינת התבניות
-template_menu = cv2.imread(TEMPLATE_MENU_PATH, cv2.IMREAD_GRAYSCALE)
-template_deaths = cv2.imread(TEMPLATE_DEATHS_PATH, cv2.IMREAD_GRAYSCALE)
-template_title = cv2.imread(TEMPLATE_TITLE_PATH, cv2.IMREAD_GRAYSCALE)
-
-# =========================================================================
-# הגדרות קיזוזים (Offsets) - כאן מכיילים את הדיוק!
-# המספרים האלו מציינים: כמה פיקסלים התבנית שגזרת רחוקה מהפינה השמאלית-עליונה של הקנבס (הפס השחור)
-# =========================================================================
-# אם הריבוע הירוק סוטה ימינה, הקטן את ערך ה-X. אם סוטה למטה, הקטן את ערך ה-Y.
-OFFSET_MENU_X = 160
-OFFSET_MENU_Y = 51  # (mid=20, פחות חצי גובה הטקסט)
-
-OFFSET_DEATHS_X = 1130  # בערך המרחק מהקצה השמאלי עד למילה DEATHS (תלוי איך גזרת)
-OFFSET_DEATHS_Y = 10
-
-# הכותרת של החלון בדרך כלל נמצאת בערך 31-35 פיקסלים מעל הקנבס, וקצת שמאלה.
-# לכן ה-Y פה הוא שלילי (כי הכותרת מעל הפס השחור).
-OFFSET_TITLE_X = -8
-OFFSET_TITLE_Y = -31
+# ==========================================
+# פרמטרי כיול והגדרות גלובליות
+# ==========================================
+CALIBRATION_X = 0
+CALIBRATION_Y = 0
+MATCH_THRESHOLD = 0.7
+ROI_SIZE = 20
 
 
-def match_element(frame_gray, template):
-    if template is None:
-        return None, 0
-    res = cv2.matchTemplate(frame_gray, template, cv2.TM_CCOEFF_NORMED)
+def detect_corner(frame, template_gray):
+    """
+    מקבלת פריים בודד (BGR) ותבנית טעונה מראש (Grayscale),
+    ומחזירה את קואורדינטות ה-(X, Y) המדויקות של הפינה.
+    אם לא נמצאה התאמה, מחזירה None.
+    """
+    # המרת הפריים לגווני אפור עבור התאמת התבנית
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # שלב 1: מציאת מיקום גס באמצעות התאמת תבנית
+    res = cv2.matchTemplate(gray_frame, template_gray, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    if max_val >= THRESHOLD:
-        return max_loc, max_val
-    return None, max_val
+
+    # אם הביטחון בזיהוי נמוך מהסף, כנראה שהחלון לא במסך
+    if max_val < MATCH_THRESHOLD:
+        return None
+
+    t_h, t_w = template_gray.shape
+    coarse_x = max_loc[0]
+    coarse_y = max_loc[1] + t_h  # יורדים לתחתית שורת הכותרת
+
+    # שלב 2: הגדרת אזור חיפוש מקומי (ROI) סביב הפינה המשוערת
+    roi_start_y = max(0, coarse_y - ROI_SIZE)
+    roi_end_y = min(frame.shape[0], coarse_y + ROI_SIZE)
+    roi_start_x = max(0, coarse_x - ROI_SIZE)
+    roi_end_x = min(frame.shape[1], coarse_x + ROI_SIZE)
+
+    corner_roi = frame[roi_start_y:roi_end_y, roi_start_x:roi_end_x]
+    gray_roi = cv2.cvtColor(corner_roi, cv2.COLOR_BGR2GRAY)
+
+    # שלב 3: זיהוי קווים מדויק בתוך ה-ROI
+    edges = cv2.Canny(gray_roi, 50, 150)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 20, minLineLength=10, maxLineGap=5)
+
+    # ברירת מחדל: המיקום הגס (ביחס ל-ROI)
+    precise_local_x = coarse_x - roi_start_x
+    precise_local_y = coarse_y - roi_start_y
+
+    if lines is not None:
+        horiz_lines = []
+        vert_lines = []
+
+        # הפרדת קווים אופקיים ואנכיים
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            if abs(y1 - y2) < 3:
+                horiz_lines.append((x1, y1, x2, y2))
+            elif abs(x1 - x2) < 3:
+                vert_lines.append((x1, y1, x2, y2))
+
+        # מציאת הקו הקרוב ביותר למרכז האזור שחיפשנו
+        if horiz_lines:
+            horiz_lines.sort(key=lambda l: abs(l[1] - corner_roi.shape[0] / 2))
+            precise_local_y = horiz_lines[0][1]
+
+        if vert_lines:
+            vert_lines.sort(key=lambda l: abs(l[0] - corner_roi.shape[1] / 2))
+            precise_local_x = vert_lines[0][0]
+
+    # שלב 4: חישוב הקואורדינטות הסופיות ביחס לפריים המקורי + כיול
+    final_x = int(precise_local_x + roi_start_x + CALIBRATION_X)
+    final_y = int(precise_local_y + roi_start_y + CALIBRATION_Y)
+
+    return (final_x, final_y)
 
 
-# =========================================================================
-# פונקציית הזיהוי
-# מחזירה את הפינה השמאלית-עליונה של הפס השחור של המשחק
-# =========================================================================
-def detect_location(frame):
-    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+""""
+# --- אזור האתחול של התוכנית ---
+# טוענים את התבנית פעם אחת לזיכרון וממירים לאפור
+template_img = cv2.imread(r)
+if template_img is not None:
+    TEMPLATE_GRAY = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
+else:
+    raise FileNotFoundError("לא ניתן למצוא את template_title.png")
 
-    # 1. ניסיון זיהוי לפי הכותרת
-    if template_title is not None:
-        loc, score = match_element(frame_gray, template_title)
-        if loc:
-            window_x = loc[0] - OFFSET_TITLE_X
-            window_y = loc[1] - OFFSET_TITLE_Y
-            return window_x, window_y, "TITLE", score
+# --- בתוך הלולאה שעוברת על הפריימים ---
+# נניח ש- current_frame הוא התמונה ששלפת עכשיו (בפורמט BGR של OpenCV)
+corner_position = detect_corner(current_frame, TEMPLATE_GRAY)
 
-    # 2. ניסיון זיהוי לפי MENU
-    if template_menu is not None:
-        loc, score = match_element(frame_gray, template_menu)
-        if loc:
-            window_x = loc[0] - OFFSET_MENU_X
-            window_y = loc[1] - OFFSET_MENU_Y
-            return window_x, window_y, "MENU", score
-
-    # 3. ניסיון זיהוי לפי DEATHS
-    if template_deaths is not None:
-        loc, score = match_element(frame_gray, template_deaths)
-        if loc:
-            window_x = loc[0] - OFFSET_DEATHS_X
-            window_y = loc[1] - OFFSET_DEATHS_Y
-            return window_x, window_y, "DEATHS", score
-
-    return None, None, "", 0
+if corner_position:
+    corner_x, corner_y = corner_position
+    # עכשיו יש לך את ה-X וה-Y המדויקים, ואפשר להשתמש בהם!
+else:
+    pass # החלון לא זוהה בפריים הנוכחי
 
 
-# =========================================================================
-# הלולאה הראשית
-# =========================================================================
-if __name__ == "__main__":
-    cap = cv2.VideoCapture(VIDEO_PATH)
+"""
 
-    if not cap.isOpened():
-        print(f"Error: Could not open video file at {VIDEO_PATH}")
+import cv2
+
+# --- טעינה ראשונית (מחוץ ללולאה - חשוב לביצועים) ---
+template_img = cv2.imread(r".\template_title.png")
+template_gray = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
+
+# פתיחת הוידאו
+cap = cv2.VideoCapture(r"C:\Users\TLP\Videos\2026-06-21 23-28-24.mp4")
+
+while cap.isOpened():
+    ret, current_frame = cap.read()
+    if not ret:
+        break
+
+    # קריאה לפונקציית הזיהוי (כפי שהגדרנו)
+    corner = detect_corner(current_frame, template_gray)
+
+    if corner:
+        x, y = corner
+        print(f"Corner found at: X={x}, Y={y}")
+
+        # סימון ויזואלי לבדיקה
+        cv2.drawMarker(current_frame, (x, y), (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
     else:
-        print("Starting detection loop. Press 'q' to exit.")
+        print("Corner not detected in this frame.")
 
-        # יצירת חלון בגודל מותאם אישית שיהיה נוח לראות על המסך
-        cv2.namedWindow("Game Detection System", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("Game Detection System", 1400, 900)
+    # הצגת הפריים לבדיקה ויזואלית
+    cv2.imshow('Detection Test', current_frame)
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-            frame = cv2.resize(frame, (VIDEO_WIDTH, VIDEO_HEIGHT))
-
-            window_x, window_y, method, score = detect_location(frame)
-
-            if window_x is not None and window_y is not None:
-                # הריבוע הירוק יעטוף בדיוק את הקנבס עצמו
-                cv2.rectangle(frame, (int(window_x), int(window_y)),
-                              (int(window_x + SCREEN_WIDTH), int(window_y + SCREEN_HEIGHT)),
-                              (0, 255, 0), 2)
-
-                # פס למעלה שידגיש את הבר השחור בלבד (לבדיקה חזותית)
-                cv2.rectangle(frame, (int(window_x), int(window_y)),
-                              (int(window_x + SCREEN_WIDTH), int(window_y + TOP_BAR_H)),
-                              (255, 0, 0), 1)
-
-                text_to_display = f"Top-Left (Canvas): ({int(window_x)}, {int(window_y)}) | Method: {method} (Score: {score:.2f})"
-                cv2.putText(frame, text_to_display,
-                            (int(window_x), int(window_y) - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            else:
-                cv2.putText(frame, "Game Window Not Found", (20, 40),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-
-            cv2.imshow("Game Detection System", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        cap.release()
-        cv2.destroyAllWindows()
+cap.release()
+cv2.destroyAllWindows()
