@@ -3,14 +3,10 @@ import numpy as np
 import get_image
 
 
-# ========================================================
-# CONFIGURATION
-# ========================================================
-
 VIDEO_FILE = "vid25.mp4"
 TEMPLATE_PATH = r".\template_title.png"
 
-RELATIVE_START_X = 1024 - 173  # 851
+RELATIVE_START_X = 1024 - 173
 RELATIVE_START_Y = 10
 
 CALIBRATION_X = 0
@@ -18,10 +14,9 @@ CALIBRATION_Y = 0
 MATCH_THRESHOLD = 0.7
 ROI_SIZE = 20
 
-# 160-bit mode
 FRAME_ROWS = 5
 FRAME_COLS = 32
-BATCH_SIZE = FRAME_ROWS * FRAME_COLS  # 160
+BATCH_SIZE = FRAME_ROWS * FRAME_COLS
 
 SEARCH_WIDTH = 235
 SEARCH_HEIGHT = 33
@@ -31,18 +26,13 @@ ROI_MARGIN_Y = 10
 
 DISPLAY_ZOOM = 4
 
-# Faint red pixel detection.
-# OpenCV images are BGR, so this means:
-# B = 0..5, G = 0..5, R = 8..25
-LOWER_RED_BIT = np.array([0, 0, 8], dtype=np.uint8)
-UPPER_RED_BIT = np.array([5, 5, 25], dtype=np.uint8)
+LOWER_RED_BIT = np.array([0, 0, 5], dtype=np.uint8)
+UPPER_RED_BIT = np.array([45, 45, 80], dtype=np.uint8)
+
+BIT_ON_THRESHOLD = 0.05
 
 all_batches = []
 
-
-# ========================================================
-# LOAD TEMPLATE
-# ========================================================
 
 template_img = cv2.imread(TEMPLATE_PATH)
 
@@ -51,10 +41,6 @@ if template_img is None:
 
 template_gray = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
 
-
-# ========================================================
-# WINDOW / CORNER DETECTION
-# ========================================================
 
 def detect_corner(frame, template_gray):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -65,10 +51,10 @@ def detect_corner(frame, template_gray):
     if max_val < MATCH_THRESHOLD:
         return None
 
-    t_h, _ = template_gray.shape
+    template_h, _ = template_gray.shape
 
     coarse_x = max_loc[0]
-    coarse_y = max_loc[1] + t_h
+    coarse_y = max_loc[1] + template_h
 
     roi_start_y = max(0, coarse_y - ROI_SIZE)
     roi_end_y = min(frame.shape[0], coarse_y + ROI_SIZE)
@@ -81,7 +67,6 @@ def detect_corner(frame, template_gray):
         return None
 
     gray_roi = cv2.cvtColor(corner_roi, cv2.COLOR_BGR2GRAY)
-
     edges = cv2.Canny(gray_roi, 50, 150)
 
     lines = cv2.HoughLinesP(
@@ -105,19 +90,18 @@ def detect_corner(frame, template_gray):
 
             if abs(y1 - y2) < 3:
                 horiz_lines.append((x1, y1, x2, y2))
-
             elif abs(x1 - x2) < 3:
                 vert_lines.append((x1, y1, x2, y2))
 
         if horiz_lines:
             horiz_lines.sort(
-                key=lambda l: abs(l[1] - corner_roi.shape[0] / 2)
+                key=lambda line_data: abs(line_data[1] - corner_roi.shape[0] / 2)
             )
             precise_local_y = horiz_lines[0][1]
 
         if vert_lines:
             vert_lines.sort(
-                key=lambda l: abs(l[0] - corner_roi.shape[1] / 2)
+                key=lambda line_data: abs(line_data[0] - corner_roi.shape[1] / 2)
             )
             precise_local_x = vert_lines[0][0]
 
@@ -127,19 +111,7 @@ def detect_corner(frame, template_gray):
     return final_x, final_y
 
 
-# ========================================================
-# BIT EXTRACTION + RED READ-POINT OVERLAY
-# ========================================================
-
 def extract_bit_matrix(mask, roi_display=None, rows=FRAME_ROWS, cols=FRAME_COLS):
-    """
-    Reads the bit grid from mask.
-
-    If roi_display is supplied, it draws:
-    - gray cell boundaries
-    - little red squares at the exact read centers
-    - green outline on cells decoded as 1
-    """
     height, width = mask.shape
     matrix = []
 
@@ -160,11 +132,10 @@ def extract_bit_matrix(mask, roi_display=None, rows=FRAME_ROWS, cols=FRAME_COLS)
 
             cell = mask[y1:y2, x1:x2]
 
-            bit_is_on = np.sum(cell > 0) > (cell.size * 0.2)
+            bit_is_on = np.sum(cell > 0) > (cell.size * BIT_ON_THRESHOLD)
             matrix.append(1 if bit_is_on else 0)
 
             if roi_display is not None:
-                # Gray border around the sampled cell
                 cv2.rectangle(
                     roi_display,
                     (x1, y1),
@@ -173,7 +144,6 @@ def extract_bit_matrix(mask, roi_display=None, rows=FRAME_ROWS, cols=FRAME_COLS)
                     1
                 )
 
-                # Red square at the exact center where this cell is read
                 cx = (x1 + x2) // 2
                 cy = (y1 + y2) // 2
                 half = 2
@@ -186,7 +156,6 @@ def extract_bit_matrix(mask, roi_display=None, rows=FRAME_ROWS, cols=FRAME_COLS)
                     -1
                 )
 
-                # Green border if decoded as 1
                 if bit_is_on:
                     cv2.rectangle(
                         roi_display,
@@ -199,15 +168,11 @@ def extract_bit_matrix(mask, roi_display=None, rows=FRAME_ROWS, cols=FRAME_COLS)
     return matrix
 
 
-# ========================================================
-# MAIN VIDEO SCANNER
-# ========================================================
-
 def scan_video_with_dynamic_origin(video_path, start_x, start_y):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        print(f"Error: Could not open video at {video_path}. Check the file name and path.")
+        print(f"Error: Could not open video at {video_path}.")
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -250,7 +215,6 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
         else:
             print(f"Frame {frame_count}: corner not detected.")
 
-        # Do not try to calculate coordinates if no origin has been found yet.
         if origin_x is None or origin_y is None:
             cv2.imshow("Detection Test", frame)
 
@@ -282,7 +246,6 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
             frame_count += 1
             continue
 
-        # Draw purple rectangle around the whole searched ROI on the main video.
         cv2.rectangle(
             frame,
             (roi_x_start, roi_y_start),
@@ -294,7 +257,6 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
         cv2.imshow("Detection Test", frame)
 
         roi = frame[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
-
         roi_buffer.append(roi)
 
         if len(roi_buffer) == 3:
@@ -310,6 +272,8 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
             mask = cv2.inRange(avg_roi, LOWER_RED_BIT, UPPER_RED_BIT)
 
             roi_display = avg_roi.copy()
+
+            roi_display[mask > 0] = (255, 255, 255)
 
             binary_matrix = extract_bit_matrix(
                 mask,
@@ -362,10 +326,6 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
     cap.release()
     cv2.destroyAllWindows()
 
-
-# ========================================================
-# RUN
-# ========================================================
 
 scan_video_with_dynamic_origin(
     VIDEO_FILE,
