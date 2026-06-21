@@ -333,11 +333,6 @@ def get_text_iterator():
     yield cnt_text_bits
     return 0
 
-def get_bits():
-    while True:
-        for bits in get_text_iterator():
-            return bits
-
 def text_from_batch(bits):
     index = int(bits[:3], 2)
     text = ""
