@@ -247,5 +247,8 @@ def main():
     sys.exit()
 
 
+def get_info():
+    return "hi"
+
 if __name__ == "__main__":
     main()
