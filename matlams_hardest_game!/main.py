@@ -311,10 +311,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-
-
-
 batch_size = 152
 
 TYPE_BITS = 3
