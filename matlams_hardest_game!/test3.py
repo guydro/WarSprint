@@ -250,7 +250,6 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
     cv2.destroyAllWindows()
 
 import get_image
-get_image.get_output_from_bits(all_batches)
 
 # ========================================================
 # CONFIGURATION
@@ -260,6 +259,8 @@ RELATIVE_START_X = 1024 - 173 # 851
 RELATIVE_START_Y = 10 # 10
 
 scan_video_with_dynamic_origin(VIDEO_FILE, RELATIVE_START_X, RELATIVE_START_Y)
+
+get_image.get_output_from_bits(all_batches)
 
 
 
