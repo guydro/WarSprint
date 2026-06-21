@@ -1,15 +1,11 @@
 import cv2
 import numpy as np
-import os
 
 CALIBRATION_X = 0
 CALIBRATION_Y = 0
 MATCH_THRESHOLD = 0.7
 ROI_SIZE = 20
 template_img = cv2.imread(r".\template_title.png")
-#current_dir = os.path.dirname(os.path.abspath(__file__))
-#template_path = os.path.join(current_dir, 'template_title.png')
-#template_img = cv2.imread(template_path)
 
 template_gray = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
 
@@ -228,12 +224,8 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
             #cv2.imshow("Target Data Region (Averaged)", roi_display)
             cv2.imshow("Red Mask View (Averaged)", mask)
             binary_matrix = extract_bit_matrix(mask, rows=5, cols=35)
+            print(binary_matrix)
             all_batches.append(binary_matrix)
-
-            #grid = extract_bit_matrix(mask)
-            #print("!\n")
-            #print(grid)
-            #print("!\n")
 
             if data_found:
                 print(f"Frames {frame_count - 2} to {frame_count}: Detected {len(on_bits_detected)} active RED bits.")
@@ -255,7 +247,7 @@ get_image.get_output_from_bits(all_batches)
 # ========================================================
 # CONFIGURATION
 # ========================================================
-VIDEO_FILE = "vid22.mp4"
+VIDEO_FILE = "vid23.mp4"
 RELATIVE_START_X = 1024 - 180
 RELATIVE_START_Y = 0
 
