@@ -7,6 +7,8 @@ import json
 import os
 import sys
 import random
+import struct
+from pathlib import Path
 
 import pygame
 
@@ -17,11 +19,134 @@ from game import Level, WON
 from menu import MainMenu, LevelSelect, SettingsMenu, draw_background
 
 PROGRESS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "progress.json")
+text_path = "../eviltext.txt"
 
+# ==========================================
+# PAYLOAD DATA & ENCODING SETTINGS
+# ==========================================
+batch_size = 152
+TYPE_BITS = 3
+INDEX_BITS = 3
+PAYLOAD_BITS = batch_size - TYPE_BITS - INDEX_BITS
+BATCHSIZE = PAYLOAD_BITS
 
+IMAGE_PATH = r"..\convertico-abstract-design-4-bit-16-colors-bmp.bmp"
+BATCHES_OUTPUT_PATH = r"..\encoded_batches.txt"
+
+HEADER_REPETITIONS = 9
+MSB_REPETITIONS = 3
+
+# =========================
+# Bit helpers
+# =========================
+def bytes_to_bits(data: bytes) -> str:
+    return "".join(f"{byte:08b}" for byte in data)
+
+def int_to_bits(value: int, bit_count: int) -> str:
+    return format(value, f"0{bit_count}b")
+
+def make_header(file_size: int) -> str:
+    """
+    Header:
+        magic number - 32 bits
+        file size    - 64 bits
+
+    Repeated HEADER_REPETITIONS times for noise resistance.
+    """
+    magic = 0xBEEFCAFE
+    raw_header = (
+        int_to_bits(magic, 32) +
+        int_to_bits(file_size, 64)
+    )
+    return raw_header * HEADER_REPETITIONS
+
+# =========================
+# Encoder
+# =========================
+def encode_bmp_file_to_batches() -> list[str]:
+    try:
+        bmp_data = Path(IMAGE_PATH).read_bytes()
+    except FileNotFoundError:
+        print(f"WARNING: Image not found at {IMAGE_PATH}")
+        return []
+
+    bit_string = make_header(len(bmp_data))
+    bit_string += bytes_to_bits(bmp_data)
+
+    padding_needed = (-len(bit_string)) % PAYLOAD_BITS
+    bit_string += "0" * padding_needed
+
+    batches = [
+        bit_string[i:i + PAYLOAD_BITS]
+        for i in range(0, len(bit_string), PAYLOAD_BITS)
+    ]
+    return batches
+
+def get_text():
+    try:
+        with open(text_path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "TEST_DATA_MISSING"
+
+def get_text_iterator():
+    i = 0
+    text_bytes = get_text().encode("utf-8")
+    chars_in_batch = PAYLOAD_BITS // 8
+
+    # 1. Yield Text Batches
+    for start in range(0, len(text_bytes), chars_in_batch):
+        chunk = text_bytes[start:start + chars_in_batch]
+        payload = "".join(f"{byte:08b}" for byte in chunk)
+        payload += "0" * (PAYLOAD_BITS - len(payload))
+
+        yield "000" + bin(i)[2:].zfill(3) + payload
+        i = (i + 1) % 8
+
+    # 2. Yield Image Batches
+    batches = encode_bmp_file_to_batches()
+    for batch in batches:
+        yield "111" + bin(i)[2:].zfill(3) + batch
+        i = (i + 1) % 8
+
+def get_text_infinite_iterator():
+    """Loops the payload forever so we never run out of data to broadcast."""
+    while True:
+        for bits in get_text_iterator():
+            yield bits
+
+# ==========================================
+# DRAWING FUNCTION
+# ==========================================
+def draw_stego_pixels(screen, bit_string, start_x, start_y):
+    """
+    Takes a string of bits ('101010...') and draws them as a grid of 3x3 squares
+    with a 3-pixel padding to survive video compression. Pure stealth mode.
+    """
+    if not bit_string:
+        return
+
+    SQUARE_SIZE = 3
+    PADDING = 3
+    MAX_COLS = 32
+    TOTAL_SQUARES = MAX_COLS * 5
+
+    padded_bit_string = bit_string.ljust(TOTAL_SQUARES, '0')
+
+    for index, bit in enumerate(padded_bit_string):
+        row = index // MAX_COLS
+        col = index % MAX_COLS
+
+        x_pos = start_x + (col * (SQUARE_SIZE + PADDING))
+        y_pos = start_y + (row * (SQUARE_SIZE + PADDING))
+
+        color = (200, 0, 0) if bit == '1' else (0, 0, 0)
+        pygame.draw.rect(screen, color, (x_pos, y_pos, SQUARE_SIZE, SQUARE_SIZE))
+
+# ==========================================
+# GAME SYSTEM FUNCTIONS
+# ==========================================
 def load_progress():
-    """Return (unlocked, total_deaths, beaten). `beaten` is True once level 20
-    has ever been cleared."""
     try:
         with open(PROGRESS_FILE) as f:
             d = json.load(f)
@@ -31,7 +156,6 @@ def load_progress():
     except (OSError, ValueError, KeyError):
         return 1, 0, False
 
-
 def save_progress(unlocked, total_deaths, beaten):
     try:
         with open(PROGRESS_FILE, "w") as f:
@@ -40,30 +164,21 @@ def save_progress(unlocked, total_deaths, beaten):
     except OSError:
         pass
 
-
 def make_screen():
-    """Windowed SCALED display: fixed game resolution, vsync'd, and ready to be
-    scaled up to fill the screen via toggle_fullscreen()."""
     try:
         return pygame.display.set_mode((C.SCREEN_WIDTH, C.SCREEN_HEIGHT),
                                        pygame.SCALED, vsync=1)
     except pygame.error:
         return pygame.display.set_mode((C.SCREEN_WIDTH, C.SCREEN_HEIGHT), pygame.SCALED)
 
-
 def apply_fullscreen(want, screen):
-    """Toggle the display to match `want` (SCALED scales the game to fill the
-    screen, keeping aspect). toggle_fullscreen keeps `screen` valid and avoids the
-    freeze that re-calling set_mode causes."""
     if bool(screen.get_flags() & pygame.FULLSCREEN) != want:
         try:
             pygame.display.toggle_fullscreen()
         except pygame.error:
             pass
 
-
 def draw_overlay(screen, lines, sub=None):
-    """Dim the screen and draw centered banner text."""
     overlay = pygame.Surface((C.SCREEN_WIDTH, C.SCREEN_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 150))
     screen.blit(overlay, (0, 0))
@@ -75,13 +190,12 @@ def draw_overlay(screen, lines, sub=None):
         C.draw_text(screen, sub, 24, C.WHITE,
                     center=(C.SCREEN_WIDTH // 2, C.SCREEN_HEIGHT - 70))
 
-
 def main():
     pygame.init()
     validate_levels()
     audio.init()
     audio.start_music()
-    # Windowed SCALED display, then go fullscreen if that was saved on.
+
     screen = make_screen()
     apply_fullscreen(audio.get_fullscreen(), screen)
     pygame.display.set_caption(C.TITLE)
@@ -95,11 +209,11 @@ def main():
     menu = MainMenu(unlocked, total)
     select = None
     settings = None
-    settings_return = "menu"      # where the settings screen returns to (menu/playing)
+    settings_return = "menu"
     level = None
     complete_timer = 0.0
     next_idx = 0
-    stage_msg = None              # (title, subtitle) shown on the stage-clear screen
+    stage_msg = None
 
     def start_level(idx):
         nonlocal level, state
@@ -112,6 +226,14 @@ def main():
         menu = MainMenu(unlocked, total)
         state = "menu"
 
+    # ==========================================
+    # INITIALIZE STEGANOGRAPHY GENERATOR
+    # ==========================================
+    # USING THE INFINITE ITERATOR SO IT NEVER STOPS!
+    text_gen = get_text_infinite_iterator()
+    current_payload = next(text_gen, None)
+    frame_hold_counter = 0
+
     running = True
     while running:
         dt = min(clock.tick(C.FPS) / 1000.0, 0.05)
@@ -119,12 +241,9 @@ def main():
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
                 running = False
-
             elif state == "menu":
                 action = menu.handle_event(e)
                 if action == "play":
-                    # Once the game is beaten, PLAY restarts from level 1
-                    # instead of dropping the player back on the final level.
                     start_level(0 if beaten else unlocked - 1)
                 elif action == "select":
                     select = LevelSelect(total, unlocked)
@@ -135,14 +254,12 @@ def main():
                     state = "settings"
                 elif action == "quit":
                     running = False
-
             elif state == "select":
                 action = select.handle_event(e)
                 if action == "back":
                     go_menu()
                 elif isinstance(action, tuple) and action[0] == "level":
                     start_level(action[1])
-
             elif state == "settings":
                 action = settings.handle_event(e)
                 if action == "reset":
@@ -156,7 +273,6 @@ def main():
                         state = "playing"
                     else:
                         go_menu()
-
             elif state == "playing":
                 if e.type == pygame.KEYDOWN:
                     if e.key == pygame.K_ESCAPE:
@@ -170,16 +286,12 @@ def main():
                         settings = SettingsMenu()
                         settings_return = "playing"
                         state = "settings"
-
             elif state == "stagecomplete":
                 if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     start_level(next_idx)
-
             elif state == "gamecomplete":
                 if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     go_menu()
-
-
 
         # --- update ---------------------------------------------------------
         if state == "playing":
@@ -193,15 +305,15 @@ def main():
                 if idx + 1 >= total:
                     beaten = True
                 save_progress(unlocked, total_deaths, beaten)
-                if idx + 1 >= total:                            # beat the final level
+                if idx + 1 >= total:
                     audio.play("stage_complete")
                     state = "gamecomplete"
-                elif (idx + 1) % C.LEVELS_PER_STAGE == 0:       # cleared a 5-level stage
+                elif (idx + 1) % C.LEVELS_PER_STAGE == 0:
                     audio.play("stage_complete")
                     next_idx = idx + 1
                     stage_msg = C.STAGE_CLEAR_MESSAGES[idx // C.LEVELS_PER_STAGE]
                     state = "stagecomplete"
-                else:                                           # on to the next level
+                else:
                     audio.play("level_complete")
                     next_idx = idx + 1
                     complete_timer = 1.3
@@ -223,7 +335,7 @@ def main():
             if state == "complete":
                 draw_overlay(screen, [("LEVEL COMPLETE!", 56, C.GREEN)])
         elif state == "stagecomplete":
-            draw_background(screen)                  # normal menu background, not the level
+            draw_background(screen)
             title, subtitle = stage_msg
             cx = C.SCREEN_WIDTH // 2
             cy = C.SCREEN_HEIGHT // 2 - 30
@@ -235,7 +347,7 @@ def main():
                         center=(cx, C.SCREEN_HEIGHT - 70))
         elif state == "gamecomplete":
             screen.fill(C.LAVENDER)
-            title, subtitle = C.STAGE_CLEAR_MESSAGES[-1]   # final stage message
+            title, subtitle = C.STAGE_CLEAR_MESSAGES[-1]
             lines = [(title, 56, C.YELLOW)]
             if subtitle:
                 lines.append((subtitle, 34, C.WHITE))
@@ -245,107 +357,49 @@ def main():
         # ==========================================
         # INJECT YOUR STEGANOGRAPHY PAYLOAD HERE
         # ==========================================
-        # Example: Draw an 8x8 dark gray block at X: 5, Y: 5
-        # safe_x = C.SCREEN_WIDTH - 200
-        # safe_y = C.TOP_BAR_H // 2
-        #
-        # # Draw an 8x8 data block
-        # pygame.draw.rect(screen, (20, 20, 20), (safe_x, safe_y - 4, 2, 2))
-        # # ==========================================
-        square_size = 1
-        num_squares_l = 50
-        num_squares_h = 10
+        if current_payload is not None:
+            # Set your coordinates
+            start_x = C.SCREEN_WIDTH - 350
+            start_y = C.TOP_BAR_H // 2 - 20
 
-        # Start coordinates: Right side of the screen, centered vertically in the HUD
-        start_x = C.SCREEN_WIDTH - 350
-        start_y = C.TOP_BAR_H // 2 - 20
+            # 1. Draw the stealth pixels
+            draw_stego_pixels(screen, current_payload, start_x, start_y)
 
-        for i in range(num_squares_l):
-            for j in range(num_squares_h):
-                # Generate random bright colors to test maximum visibility
-                # (For actual exfiltration, you would use dark grays like 20, 20, 20)
-                r = random.randint(5, 30)
-                g = random.randint(5, 30)
-                b = random.randint(5, 30)
-                test_color = (r, g, b)
+            # 2. Advance the frame counter
+            frame_hold_counter += 1
 
-                # Calculate X position: space them out by the square size plus a 2-pixel gap
-                x_pos = start_x + (i * (square_size + 2))
-                y_pos = start_y + (j * (square_size + 2))
+            # 3. Holding speed (Currently set to 10 frames per batch)
+            if frame_hold_counter >= 10:
+                frame_hold_counter = 0
+                try:
+                    current_payload = next(text_gen)
+                except StopIteration:
+                    current_payload = None
 
-                # Draw the 2x2 square
-                pygame.draw.rect(screen, test_color, (x_pos, y_pos, square_size, square_size))
-
-        # TODO
-        from ctypes import POINTER, WINFUNCTYPE, windll
-        from ctypes.wintypes import BOOL, HWND, RECT
-
+        # Calibration dot for the OpenCV scanner
         my_rect = pygame.Rect(0, 0, 8, 8)
-        #pygame.draw.rect(screen, (255, 0, 0), my_rect)
-        # TODO
-        from ctypes import POINTER, WINFUNCTYPE, windll
-        from ctypes.wintypes import BOOL, HWND, RECT
+        pygame.draw.rect(screen, (255, 0, 0), my_rect)
 
-        # Fetch the unique window OS identifier handle from Pygame
-        hwnd = pygame.display.get_wm_info()["window"]
+        # Windows Hook API
+        try:
+            from ctypes import POINTER, WINFUNCTYPE, windll
+            from ctypes.wintypes import BOOL, HWND, RECT
 
-        # Map out Windows C-types functions
-        prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
-        paramflags = (1, "hwnd"), (2, "lprect")
-        GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
+            hwnd = pygame.display.get_wm_info()["window"]
+            prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
+            paramflags = (1, "hwnd"), (2, "lprect")
+            GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
 
-        # Access the absolute window borders on your monitor
-        rect = GetWindowRect(hwnd)
-        print(f"Absolute Window Top-Left -> X: {rect.left}, Y: {rect.top}")
-
-
-
-
+            rect = GetWindowRect(hwnd)
+        except Exception:
+            pass
+        # ==========================================
 
         pygame.display.flip()
 
     save_progress(unlocked, total_deaths, beaten)
     pygame.quit()
     sys.exit()
-
-text_path = "../eviltext.txt"
-
-
-def get_text():
-    with open(text_path, "r") as f:
-        string = f.read()
-    return string
-
-chars_in_batch = 10
-def get_text_iterator():
-    i = 0
-    text = get_text()
-    cnt_text = ""
-    cnt_text_bits = bin(i)[2:].zfill(3)
-    for char in text:
-        cnt_text += char
-        cnt_text_bits += "0" + bin(ord(char))[2:]
-        if len(cnt_text) >= chars_in_batch:
-            i = (i + 1) % 8
-            yield cnt_text_bits
-            cnt_text_bits = bin(i)[2:].zfill(3)
-            cnt_text = ""
-    yield cnt_text_bits
-    return 0
-
-def text_from_batch(bits):
-    index = int(bits[:3], 2)
-    text = ""
-    cnt_char = ""
-    for char in bits[3:]:
-        cnt_char += char
-        if len(cnt_char) >= 8:
-            text += chr(int(cnt_char, 2))
-            cnt_char = ""
-
-    return index, text
-
-
 
 if __name__ == "__main__":
     main()
