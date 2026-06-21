@@ -13,6 +13,7 @@ template_img = cv2.imread(r".\template_title.png")
 
 template_gray = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
 
+all_batches = []
 
 def detect_corner(frame, template_gray):
     """
@@ -88,7 +89,7 @@ def extract_bit_matrix(mask, rows=5, cols=32):
     הנחת עבודה: ה-mask הוא תמונה בינארית (0 או 255).
     """
     height, width = mask.shape
-    matrix = np.zeros((rows, cols), dtype=int)
+    matrix = []
 
     # גודל כל תא בפיקסלים
     cell_h = height // rows
@@ -103,7 +104,9 @@ def extract_bit_matrix(mask, rows=5, cols=32):
             # בדיקת האזור: אם יש מספיק פיקסלים לבנים (למשל יותר מ-20% מהתא)
             cell = mask[y1:y2, x1:x2]
             if np.sum(cell > 0) > (cell.size * 0.2):
-                matrix[r, c] = 1
+                matrix.append(1)
+            else:
+                matrix.append(0)
 
     return matrix
 
@@ -225,7 +228,7 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
             #cv2.imshow("Target Data Region (Averaged)", roi_display)
             cv2.imshow("Red Mask View (Averaged)", mask)
             binary_matrix = extract_bit_matrix(mask, rows=5, cols=35)
-            print(binary_matrix)
+            all_batches.append(binary_matrix)
 
             #grid = extract_bit_matrix(mask)
             #print("!\n")
@@ -246,6 +249,8 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
     cap.release()
     cv2.destroyAllWindows()
 
+import get_image
+get_image.get_output_from_bits(all_batches)
 
 # ========================================================
 # CONFIGURATION
