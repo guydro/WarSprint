@@ -316,6 +316,35 @@ def get_text():
         string = f.read()
     return string
 
+chars_in_batch = 10
+def get_text_iterator():
+    i = 0
+    text = get_text()
+    cnt_text = ""
+    cnt_text_bits = bin(i)[2:].zfill(3)
+    for char in text:
+        cnt_text += char
+        cnt_text_bits += "0" + bin(ord(char))[2:]
+        if len(cnt_text) >= chars_in_batch:
+            i = (i + 1) % 8
+            yield cnt_text_bits
+            cnt_text_bits = bin(i)[2:].zfill(3)
+            cnt_text = ""
+    yield cnt_text_bits
+    return 0
+
+def text_from_batch(bits):
+    index = int(bits[:3], 2)
+    text = ""
+    cnt_char = ""
+    for char in bits[3:]:
+        cnt_char += char
+        if len(cnt_char) >= 8:
+            text += chr(int(cnt_char, 2))
+            cnt_char = ""
+
+    return index, text
+
 
 
 if __name__ == "__main__":

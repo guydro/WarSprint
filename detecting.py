@@ -4,11 +4,11 @@ import numpy as np
 # =========================================================================
 # הגדרות נתיבים, קבצים ופרמטרים של המשחק
 # =========================================================================
-VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 21-30-50.mp4"
+VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 22-46-43.mp4"
 
-TEMPLATE_MENU_PATH = r"C:\Users\TLP\Videos\template_menu.png"
-TEMPLATE_DEATHS_PATH = r"C:\Users\TLP\Videos\template_deaths.png"
-TEMPLATE_TITLE_PATH = r"C:\Users\TLP\Videos\template_title.png"
+TEMPLATE_MENU_PATH = r".\reference_files\template_title.png"
+TEMPLATE_DEATHS_PATH = r".\reference_files\template_title.png"
+TEMPLATE_TITLE_PATH = r".\reference_files\template_menu.png"
 
 # מידות הווידאו והמשחק
 VIDEO_WIDTH = 1920
@@ -29,8 +29,8 @@ template_title = cv2.imread(TEMPLATE_TITLE_PATH, cv2.IMREAD_GRAYSCALE)
 # המספרים האלו מציינים: כמה פיקסלים התבנית שגזרת רחוקה מהפינה השמאלית-עליונה של הקנבס (הפס השחור)
 # =========================================================================
 # אם הריבוע הירוק סוטה ימינה, הקטן את ערך ה-X. אם סוטה למטה, הקטן את ערך ה-Y.
-OFFSET_MENU_X = 16
-OFFSET_MENU_Y = 10  # (mid=20, פחות חצי גובה הטקסט)
+OFFSET_MENU_X = 160
+OFFSET_MENU_Y = 51  # (mid=20, פחות חצי גובה הטקסט)
 
 OFFSET_DEATHS_X = 1130  # בערך המרחק מהקצה השמאלי עד למילה DEATHS (תלוי איך גזרת)
 OFFSET_DEATHS_Y = 10
