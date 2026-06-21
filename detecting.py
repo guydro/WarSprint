@@ -2,145 +2,136 @@ import cv2
 import numpy as np
 
 # =========================================================================
-# שלב 1: הגדרות נתיבים, קבצים ופרמטרים של המשחק
+# הגדרות נתיבים, קבצים ופרמטרים של המשחק
 # =========================================================================
-# הכנס כאן את הנתיב לקובץ הווידאו שלך
-VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 20-49-41.mp4"
+VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 21-30-50.mp4"
 
-# נתיבים לתמונות הטמפלייט (החלקים שנגזור לצורך זיהוי)
-TEMPLATE_MENU_PATH = r"C:\Users\TLP\Videos\template_title.png"
-TEMPLATE_DEATHS_PATH = r"C:\Users\TLP\Videos\template_title.png"
-TEMPLATE_TITLE_PATH = r"C:\Users\TLP\Videos\template_menu.png"
+TEMPLATE_MENU_PATH = r"C:\Users\TLP\Videos\template_menu.png"
+TEMPLATE_DEATHS_PATH = r"C:\Users\TLP\Videos\template_deaths.png"
+TEMPLATE_TITLE_PATH = r"C:\Users\TLP\Videos\template_title.png"
 
-# מימדי המשחק המקוריים (לפי ה-Config של המשחק שלך, שנה במידת הצורך)
-SCREEN_WIDTH = 800  # דוגמה, שנה לרוחב האמיתי של המשחק בקוד
-SCREEN_HEIGHT = 600  # דוגמה, שנה לגובה האמיתי של המשחק בקוד
-TOP_BAR_H = 40  # גובה הבר העליון (HUD)
+# מידות הווידאו והמשחק
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
+SCREEN_WIDTH = 1278  # הותאם ל-1280
+SCREEN_HEIGHT = 800  # הותאם ל-800
+TOP_BAR_H = 40
 
-# סף רגישות לזיהוי (בין 0 ל-1). 0.8 זו נקודת התחלה טובה
-THRESHOLD = 0.8
+THRESHOLD = 0.75
 
-# =========================================================================
-# טעינת הטמפלייטים במצב גווני אפור (Grayscale)
-# =========================================================================
+# טעינת התבניות
 template_menu = cv2.imread(TEMPLATE_MENU_PATH, cv2.IMREAD_GRAYSCALE)
 template_deaths = cv2.imread(TEMPLATE_DEATHS_PATH, cv2.IMREAD_GRAYSCALE)
 template_title = cv2.imread(TEMPLATE_TITLE_PATH, cv2.IMREAD_GRAYSCALE)
 
-def resize_to_fit(img, max_width=1280, max_height=720):
-    h, w = img.shape[:2]
+# =========================================================================
+# הגדרות קיזוזים (Offsets) - כאן מכיילים את הדיוק!
+# המספרים האלו מציינים: כמה פיקסלים התבנית שגזרת רחוקה מהפינה השמאלית-עליונה של הקנבס (הפס השחור)
+# =========================================================================
+# אם הריבוע הירוק סוטה ימינה, הקטן את ערך ה-X. אם סוטה למטה, הקטן את ערך ה-Y.
+OFFSET_MENU_X = 16
+OFFSET_MENU_Y = 10  # (mid=20, פחות חצי גובה הטקסט)
 
-    scale = min(max_width / w, max_height / h, 1.0)
+OFFSET_DEATHS_X = 1130  # בערך המרחק מהקצה השמאלי עד למילה DEATHS (תלוי איך גזרת)
+OFFSET_DEATHS_Y = 10
 
-    new_w = int(w * scale)
-    new_h = int(h * scale)
+# הכותרת של החלון בדרך כלל נמצאת בערך 31-35 פיקסלים מעל הקנבס, וקצת שמאלה.
+# לכן ה-Y פה הוא שלילי (כי הכותרת מעל הפס השחור).
+OFFSET_TITLE_X = -8
+OFFSET_TITLE_Y = -31
 
-    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-    return resized
 
-# פונקציית עזר לביצוע התאמת תבנית (Template Matching)
 def match_element(frame_gray, template):
     if template is None:
         return None, 0
-    w, h = template.shape[::-1]
     res = cv2.matchTemplate(frame_gray, template, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
     if max_val >= THRESHOLD:
-        return max_loc, max_val  # נקודת הפינה השמאלית-עליונה של האלמנט שנמצא
+        return max_loc, max_val
     return None, max_val
 
 
 # =========================================================================
-# שלב 2: לולאת הרצה וסריקה תמידית על סרטון הווידאו
+# פונקציית הזיהוי
+# מחזירה את הפינה השמאלית-עליונה של הפס השחור של המשחק
 # =========================================================================
-cap = cv2.VideoCapture(VIDEO_PATH)
-
-if not cap.isOpened():
-    print(f"Error: Could not open video file at {VIDEO_PATH}")
-    print("Please make sure the path is correct and templates are created.")
-
-print("Starting detection loop. Press 'q' to exit.")
-
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        print("End of video or cannot read frame.")
-        break
-
-    # המרה לגווני אפור לצורך זיהוי מהיר ומדויק יותר
+def detect_location(frame):
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    window_detected = False
-    window_x, window_y = 0, 0
-    detection_method = ""
-
-    # ---------------------------------------------------------------------
-    # אופן זיהוי 1: לפי כיתוב הטקסט "MENU"
-    # ---------------------------------------------------------------------
-    if not window_detected and template_menu is not None:
-        loc, score = match_element(frame_gray, template_menu)
-        if loc:
-            # לפי קוד המשחק: midleft=(16, mid). הטקסט מתחיל ב-X=16
-            window_x = loc[0] - 16
-            # מציאת ה-Y ביחס לגובה הבר העליון
-            window_y = loc[1] - (TOP_BAR_H // 2 - template_menu.shape[0] // 2)
-            detection_method = f"MENU (Score: {score:.2f})"
-            window_detected = True
-
-    # ---------------------------------------------------------------------
-    # אופן זיהוי 2: לפי כיתוב הטקסט "DEATHS"
-    # ---------------------------------------------------------------------
-    if not window_detected and template_deaths is not None:
-        loc, score = match_element(frame_gray, template_deaths)
-        if loc:
-            # לפי קוד המשחק: midright=(SCREEN_WIDTH - 16, mid)
-            # לכן הפינה הימנית של הטקסט היא ב-SCREEN_WIDTH - 16
-            # הפינה השמאלית שזיהינו (loc[0]) פלוס רוחב הטמפלייט שווה לימין הטקסט
-            text_right_x = loc[0] + template_deaths.shape[1]
-            window_x = text_right_x - (SCREEN_WIDTH - 16)
-            window_y = loc[1] - (TOP_BAR_H // 2 - template_deaths.shape[0] // 2)
-            detection_method = f"DEATHS (Score: {score:.2f})"
-            window_detected = True
-
-    # ---------------------------------------------------------------------
-    # אופן זיהוי 3: לפי שם החלון "The Matlam's Hardest Game" (בר הכותרת של Windows)
-    # ---------------------------------------------------------------------
-    if not window_detected and template_title is not None:
+    # 1. ניסיון זיהוי לפי הכותרת
+    if template_title is not None:
         loc, score = match_element(frame_gray, template_title)
         if loc:
-            # בר הכותרת נמצא מעל תוכן המשחק. נצטרך להתאים את האופסט (Offset)
-            # בהתאם למקום המדויק ממנו גזרת את הטמפלייט של הכותרת.
-            window_x = loc[0] - 10  # דוגמה לאופסט שמאלי מהאייקון/טקסט
-            window_y = loc[1]  # הפינה העליונה של חלון ה-OS
-            detection_method = f"Window Title (Score: {score:.2f})"
-            window_detected = True
+            window_x = loc[0] - OFFSET_TITLE_X
+            window_y = loc[1] - OFFSET_TITLE_Y
+            return window_x, window_y, "TITLE", score
 
-    # ---------------------------------------------------------------------
-    # ציור התוצאה על המסך במידה ונמצא מיקום
-    # ---------------------------------------------------------------------
-    if window_detected:
-        # ציור מלבן מסביב לכל גבולות המשחק המשוערים
-        cv2.rectangle(frame, (int(window_x), int(window_y)),
-                      (int(window_x + SCREEN_WIDTH), int(window_y + SCREEN_HEIGHT)),
-                      (0, 255, 0), 2)
+    # 2. ניסיון זיהוי לפי MENU
+    if template_menu is not None:
+        loc, score = match_element(frame_gray, template_menu)
+        if loc:
+            window_x = loc[0] - OFFSET_MENU_X
+            window_y = loc[1] - OFFSET_MENU_Y
+            return window_x, window_y, "MENU", score
 
-        # כתיבת שיטת הזיהוי הנוכחית מעל המלבן
-        cv2.putText(frame, f"Detected via: {detection_method}",
-                    (int(window_x), int(window_y) - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    # 3. ניסיון זיהוי לפי DEATHS
+    if template_deaths is not None:
+        loc, score = match_element(frame_gray, template_deaths)
+        if loc:
+            window_x = loc[0] - OFFSET_DEATHS_X
+            window_y = loc[1] - OFFSET_DEATHS_Y
+            return window_x, window_y, "DEATHS", score
+
+    return None, None, "", 0
+
+
+# =========================================================================
+# הלולאה הראשית
+# =========================================================================
+if __name__ == "__main__":
+    cap = cv2.VideoCapture(VIDEO_PATH)
+
+    if not cap.isOpened():
+        print(f"Error: Could not open video file at {VIDEO_PATH}")
     else:
-        cv2.putText(frame, "Game Window Not Found", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        print("Starting detection loop. Press 'q' to exit.")
 
-    display_frame = resize_to_fit(frame, max_width=1280, max_height=720)
+        # יצירת חלון בגודל מותאם אישית שיהיה נוח לראות על המסך
+        cv2.namedWindow("Game Detection System", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("Game Detection System", 1400, 900)
 
-    cv2.imshow("Game Detection System", display_frame)
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-    print("original:", frame.shape, "display:", display_frame.shape)
+            frame = cv2.resize(frame, (VIDEO_WIDTH, VIDEO_HEIGHT))
 
-    # יציאה בלחיצה על המקש 'q'
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            window_x, window_y, method, score = detect_location(frame)
 
-cap.release()
-cv2.destroyAllWindows()
+            if window_x is not None and window_y is not None:
+                # הריבוע הירוק יעטוף בדיוק את הקנבס עצמו
+                cv2.rectangle(frame, (int(window_x), int(window_y)),
+                              (int(window_x + SCREEN_WIDTH), int(window_y + SCREEN_HEIGHT)),
+                              (0, 255, 0), 2)
+
+                # פס למעלה שידגיש את הבר השחור בלבד (לבדיקה חזותית)
+                cv2.rectangle(frame, (int(window_x), int(window_y)),
+                              (int(window_x + SCREEN_WIDTH), int(window_y + TOP_BAR_H)),
+                              (255, 0, 0), 1)
+
+                text_to_display = f"Top-Left (Canvas): ({int(window_x)}, {int(window_y)}) | Method: {method} (Score: {score:.2f})"
+                cv2.putText(frame, text_to_display,
+                            (int(window_x), int(window_y) - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            else:
+                cv2.putText(frame, "Game Window Not Found", (20, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+            cv2.imshow("Game Detection System", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
