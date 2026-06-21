@@ -91,7 +91,7 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
         data_abs_x = origin_x + start_x
         data_abs_y = origin_y + start_y
 
-        SEARCH_WIDTH = 250
+        SEARCH_WIDTH = 290
         SEARCH_HEIGHT = 50
 
         roi_y_start = data_abs_y - 10
@@ -156,8 +156,8 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
 # ========================================================
 # CONFIGURATION
 # ========================================================
-VIDEO_FILE = "vid14.mp4"
-RELATIVE_START_X = 1024 - 180
+VIDEO_FILE = "vid16.mp4"
+RELATIVE_START_X = 1024 - 184
 RELATIVE_START_Y = 0
 
 scan_video_with_dynamic_origin(VIDEO_FILE, RELATIVE_START_X, RELATIVE_START_Y)
