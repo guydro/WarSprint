@@ -275,7 +275,33 @@ def main():
 
                 # Draw the 2x2 square
                 pygame.draw.rect(screen, test_color, (x_pos, y_pos, square_size, square_size))
-        pygame.draw.rect(screen, (255, 0, 0), (0, 0, 8, 8))
+
+        # TODO
+        from ctypes import POINTER, WINFUNCTYPE, windll
+        from ctypes.wintypes import BOOL, HWND, RECT
+
+        my_rect = pygame.Rect(0, 0, 8, 8)
+        pygame.draw.rect(screen, (255, 0, 0), my_rect)
+        # TODO
+        from ctypes import POINTER, WINFUNCTYPE, windll
+        from ctypes.wintypes import BOOL, HWND, RECT
+
+        # Fetch the unique window OS identifier handle from Pygame
+        hwnd = pygame.display.get_wm_info()["window"]
+
+        # Map out Windows C-types functions
+        prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
+        paramflags = (1, "hwnd"), (2, "lprect")
+        GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
+
+        # Access the absolute window borders on your monitor
+        rect = GetWindowRect(hwnd)
+        print(f"Absolute Window Top-Left -> X: {rect.left}, Y: {rect.top}")
+
+
+
+
+
         pygame.display.flip()
 
     save_progress(unlocked, total_deaths, beaten)
@@ -284,15 +310,11 @@ def main():
 
 text_path = "../eviltext.txt"
 
+
 def get_text():
     with open(text_path, "r") as f:
         string = f.read()
     return string
-
-
-def get_info(origin, frame, screen_type):
-    return
-
 
 
 
