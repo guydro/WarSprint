@@ -163,42 +163,9 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
             break
 
         # 1. FIND THE ORIGIN
-        if origin_x is None or origin_y is None:
-            origin_x, origin_y = find_red_origin(frame)
-            if origin_x is not None:
-                print(f"[+] Origin Calibration Locked at Absolute Coords: X={origin_x}, Y={origin_y}")
-
-                if search_window_created:
-                    cv2.destroyWindow("Searching for Red Square...")
-
-                verify_img = frame.copy()
-                cv2.rectangle(verify_img, (origin_x, origin_y), (origin_x + 15, origin_y + 15), (0, 255, 255), 2)
-                cv2.putText(verify_img, "ORIGIN FOUND HERE", (origin_x + 20, origin_y + 15), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.8, (0, 255, 255), 2)
-
-                cv2.namedWindow("Origin Verification", cv2.WINDOW_NORMAL)
-                cv2.setWindowProperty("Origin Verification", cv2.WND_PROP_TOPMOST, 1)
-                cv2.imshow("Origin Verification", verify_img)
-                print(">>> Press ANY KEY on the image window to continue scanning... <<<")
-                cv2.waitKey(0)
-                cv2.destroyWindow("Origin Verification")
-
-            else:
-                cv2.namedWindow("Searching for Red Square...", cv2.WINDOW_NORMAL)
-                cv2.setWindowProperty("Searching for Red Square...", cv2.WND_PROP_TOPMOST, 1)
-                cv2.imshow("Searching for Red Square...", frame)
-                search_window_created = True
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-                frame_count += 1
-                continue
-
         corner = detect_corner(frame, template_gray)
-
         if corner:
             origin_x, origin_y = corner
-
-
             # סימון ויזואלי לבדיקה
             cv2.drawMarker(frame, (origin_x, origin_y), (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
         else:
@@ -283,7 +250,7 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
 # ========================================================
 # CONFIGURATION
 # ========================================================
-VIDEO_FILE = "vid15.mp4"
+VIDEO_FILE = "vid22.mp4"
 RELATIVE_START_X = 1024 - 180
 RELATIVE_START_Y = 0
 

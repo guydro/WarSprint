@@ -376,23 +376,19 @@ def main():
                 except StopIteration:
                     current_payload = None
 
-        # Calibration dot for the OpenCV scanner
-        my_rect = pygame.Rect(0, 0, 8, 8)
-        pygame.draw.rect(screen, (255, 0, 0), my_rect)
-
-        # Windows Hook API
-        try:
-            from ctypes import POINTER, WINFUNCTYPE, windll
-            from ctypes.wintypes import BOOL, HWND, RECT
-
-            hwnd = pygame.display.get_wm_info()["window"]
-            prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
-            paramflags = (1, "hwnd"), (2, "lprect")
-            GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
-
-            rect = GetWindowRect(hwnd)
-        except Exception:
-            pass
+        # # Windows Hook API
+        # try:
+        #     from ctypes import POINTER, WINFUNCTYPE, windll
+        #     from ctypes.wintypes import BOOL, HWND, RECT
+        #
+        #     hwnd = pygame.display.get_wm_info()["window"]
+        #     prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
+        #     paramflags = (1, "hwnd"), (2, "lprect")
+        #     GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
+        #
+        #     rect = GetWindowRect(hwnd)
+        # except Exception:
+        #     pass
         # ==========================================
 
         pygame.display.flip()
