@@ -17,8 +17,88 @@ from game import Level, WON
 from menu import MainMenu, LevelSelect, SettingsMenu, draw_background
 
 PROGRESS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "progress.json")
+text_path = "../eviltext.txt"
+
+# ==========================================
+# PAYLOAD DATA & DRAWING FUNCTIONS
+# ==========================================
+def draw_stego_pixels(screen, bit_string, start_x, start_y):
+    """
+    Takes a string of bits ('101010...') and draws them as a grid of 3x3 squares
+    with a 3-pixel padding to survive video compression. Pure stealth mode.
+    """
+    if not bit_string:
+        return
+
+    SQUARE_SIZE = 3
+    PADDING = 3       # The "social distancing" gap
+    MAX_COLS = 32     # 32 bits wide per row
+    TOTAL_SQUARES = MAX_COLS * 5 # 160 total squares for a 5-row grid
+
+    # Pad the string with '0's so it ALWAYS draws 160 squares (prevents flickering)
+    padded_bit_string = bit_string.ljust(TOTAL_SQUARES, '0')
+
+    for index, bit in enumerate(padded_bit_string):
+        row = index // MAX_COLS
+        col = index % MAX_COLS
+
+        x_pos = start_x + (col * (SQUARE_SIZE + PADDING))
+        y_pos = start_y + (row * (SQUARE_SIZE + PADDING))
+
+        # Faint red (20, 0, 0) for ON, pitch black (0, 0, 0) for OFF
+        color = (20, 0, 0) if bit == '1' else (0, 0, 0)
+        pygame.draw.rect(screen, color, (x_pos, y_pos, SQUARE_SIZE, SQUARE_SIZE))
+
+def get_text():
+    try:
+        with open(text_path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "TEST_DATA_MISSING"
+
+chars_in_batch = 19
+
+def get_text_iterator():
+    """Corrected iterator using strict 8-bit formatting."""
+    i = 0
+    text = get_text()
+    cnt_text = ""
+    cnt_text_bits = format(i, '03b')
+
+    for char in text:
+        cnt_text += char
+        cnt_text_bits += format(ord(char), '08b')
+
+        if len(cnt_text) >= chars_in_batch:
+            i = (i + 1) % 8
+            yield cnt_text_bits
+            cnt_text_bits = format(i, '03b')
+            cnt_text = ""
+
+    if cnt_text:
+        yield cnt_text_bits
+
+def get_text_infinite_iterator():
+    """Loops the payload forever so we never run out of data to broadcast."""
+    while True:
+        for bits in get_text_iterator():
+            yield bits
+
+def text_from_batch(bits):
+    index = int(bits[:3], 2)
+    text = ""
+    cnt_char = ""
+    for char in bits[3:]:
+        cnt_char += char
+        if len(cnt_char) >= 8:
+            text += chr(int(cnt_char, 2))
+            cnt_char = ""
+    return index, text
 
 
+# ==========================================
+# GAME SYSTEM FUNCTIONS
+# ==========================================
 def load_progress():
     """Return (unlocked, total_deaths, beaten). `beaten` is True once level 20
     has ever been cleared."""
@@ -112,6 +192,13 @@ def main():
         menu = MainMenu(unlocked, total)
         state = "menu"
 
+    # ==========================================
+    # INITIALIZE STEGANOGRAPHY GENERATOR
+    # ==========================================
+    text_gen = get_text_infinite_iterator()
+    current_payload = next(text_gen, None)
+    frame_hold_counter = 0
+
     running = True
     while running:
         dt = min(clock.tick(C.FPS) / 1000.0, 0.05)
@@ -179,8 +266,6 @@ def main():
                 if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     go_menu()
 
-
-
         # --- update ---------------------------------------------------------
         if state == "playing":
             keys = pygame.key.get_pressed()
@@ -245,68 +330,55 @@ def main():
         # ==========================================
         # INJECT YOUR STEGANOGRAPHY PAYLOAD HERE
         # ==========================================
-        # Example: Draw an 8x8 dark gray block at X: 5, Y: 5
-        # safe_x = C.SCREEN_WIDTH - 200
-        # safe_y = C.TOP_BAR_H // 2
-        #
-        # # Draw an 8x8 data block
-        # pygame.draw.rect(screen, (20, 20, 20), (safe_x, safe_y - 4, 2, 2))
-        # # ==========================================
-        square_size = 1
-        num_squares_l = 50
-        num_squares_h = 10
+        if current_payload is not None:
+            # Set your coordinates
+            start_x = C.SCREEN_WIDTH - 360
+            start_y = C.TOP_BAR_H // 2 - 20
 
-        # Start coordinates: Right side of the screen, centered vertically in the HUD
-        start_x = C.SCREEN_WIDTH - 350
-        start_y = C.TOP_BAR_H // 2 - 20
+            # 1. Draw the stealth pixels
+            draw_stego_pixels(screen, current_payload, start_x, start_y)
 
-        for i in range(num_squares_l):
-            for j in range(num_squares_h):
-                # Generate random bright colors to test maximum visibility
-                # (For actual exfiltration, you would use dark grays like 20, 20, 20)
-                r = random.randint(5, 30)
-                g = random.randint(5, 30)
-                b = random.randint(5, 30)
-                test_color = (r, g, b)
+            # 2. Advance the frame counter
+            frame_hold_counter += 1
 
-                # Calculate X position: space them out by the square size plus a 2-pixel gap
-                x_pos = start_x + (i * (square_size + 2))
-                y_pos = start_y + (j * (square_size + 2))
+            # 3. Holding speed (Currently set to 10 frames per batch)
+            if frame_hold_counter >= 10:
+                frame_hold_counter = 0
+                try:
+                    current_payload = next(text_gen)
+                except StopIteration:
+                    current_payload = None
 
-                # Draw the 2x2 square
-                pygame.draw.rect(screen, test_color, (x_pos, y_pos, square_size, square_size))
-
-        # TODO
-        from ctypes import POINTER, WINFUNCTYPE, windll
-        from ctypes.wintypes import BOOL, HWND, RECT
-
+        # Calibration dot for the OpenCV scanner
         my_rect = pygame.Rect(0, 0, 8, 8)
         pygame.draw.rect(screen, (255, 0, 0), my_rect)
-        # TODO
-        from ctypes import POINTER, WINFUNCTYPE, windll
-        from ctypes.wintypes import BOOL, HWND, RECT
 
-        # Fetch the unique window OS identifier handle from Pygame
-        hwnd = pygame.display.get_wm_info()["window"]
+        # Windows Hook API
+        try:
+            from ctypes import POINTER, WINFUNCTYPE, windll
+            from ctypes.wintypes import BOOL, HWND, RECT
 
-        # Map out Windows C-types functions
-        prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
-        paramflags = (1, "hwnd"), (2, "lprect")
-        GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
+            # Fetch the unique window OS identifier handle from Pygame
+            hwnd = pygame.display.get_wm_info()["window"]
 
-        # Access the absolute window borders on your monitor
-        rect = GetWindowRect(hwnd)
-        print(f"Absolute Window Top-Left -> X: {rect.left}, Y: {rect.top}")
+            # Map out Windows C-types functions
+            prototype = WINFUNCTYPE(BOOL, HWND, POINTER(RECT))
+            paramflags = (1, "hwnd"), (2, "lprect")
+            GetWindowRect = prototype(("GetWindowRect", windll.user32), paramflags)
 
-
-
-
+            # Access the absolute window borders on your monitor
+            rect = GetWindowRect(hwnd)
+            # print(f"Absolute Window Top-Left -> X: {rect.left}, Y: {rect.top}")
+        except Exception:
+            pass
+        # ==========================================
 
         pygame.display.flip()
 
     save_progress(unlocked, total_deaths, beaten)
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()
