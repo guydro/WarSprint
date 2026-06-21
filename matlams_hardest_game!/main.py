@@ -140,7 +140,7 @@ def draw_stego_pixels(screen, bit_string, start_x, start_y):
         x_pos = start_x + (col * (SQUARE_SIZE + PADDING))
         y_pos = start_y + (row * (SQUARE_SIZE + PADDING))
 
-        color = (200, 0, 0) if bit == '1' else (0, 0, 0)
+        color = (20, 0, 0) if bit == '1' else (0, 0, 0)
         pygame.draw.rect(screen, color, (x_pos, y_pos, SQUARE_SIZE, SQUARE_SIZE))
 
 # ==========================================
