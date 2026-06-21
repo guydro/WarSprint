@@ -3,7 +3,6 @@
 Run from this folder:  python main.py
 Controls: Arrows/WASD move, R restart the level, Esc back to menu.
 """
-
 import json
 import os
 import sys
@@ -281,9 +280,17 @@ def main():
     pygame.quit()
     sys.exit()
 
+text_path = "../eviltext.txt"
 
-def get_info():
-    return "hi"
+def get_text():
+    with open(text_path, "r") as f:
+        string = f.read()
+    return string
+
+
+def get_info(origin, frame, screen_type):
+    return
+
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,6 @@ from config import TILE, TOP_BAR_H, SCREEN_WIDTH, SCREEN_HEIGHT
 from sprites import Player, Enemy, Coin
 from menu import draw_background
 
-
 def _draw_gear(surf, cx, cy, r, color):
     """Draw a small gear/cog icon (used as the in-level settings button)."""
     for k in range(8):
