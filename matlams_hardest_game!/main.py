@@ -253,7 +253,5 @@ def get_info():
         string = f.read()
     return string
 
-print(get_info())
-
 if __name__ == "__main__":
     main()
