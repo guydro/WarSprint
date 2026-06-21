@@ -1,26 +1,16 @@
 import cv2
-
-def resize_to_fit(img, max_width=1280, max_height=720):
-    h, w = img.shape[:2]
-
-    scale = min(max_width / w, max_height / h, 1.0)
-
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-
-    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-    return resized
+import numpy as np
 
 # =========================================================================
 # שלב 1: הגדרות נתיבים, קבצים ופרמטרים של המשחק
 # =========================================================================
 # הכנס כאן את הנתיב לקובץ הווידאו שלך
-VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 21-01-45.mp4"
+VIDEO_PATH = r"C:\Users\TLP\Videos\2026-06-21 20-49-41.mp4"
 
 # נתיבים לתמונות הטמפלייט (החלקים שנגזור לצורך זיהוי)
-TEMPLATE_MENU_PATH = r".\reference_files\template_title.png"
-TEMPLATE_DEATHS_PATH = r".\reference_files\template_title.png"
-TEMPLATE_TITLE_PATH = r".\reference_files\template_menu.png"
+TEMPLATE_MENU_PATH = r"C:\Users\TLP\Videos\template_title.png"
+TEMPLATE_DEATHS_PATH = r"C:\Users\TLP\Videos\template_title.png"
+TEMPLATE_TITLE_PATH = r"C:\Users\TLP\Videos\template_menu.png"
 
 # מימדי המשחק המקוריים (לפי ה-Config של המשחק שלך, שנה במידת הצורך)
 SCREEN_WIDTH = 800  # דוגמה, שנה לרוחב האמיתי של המשחק בקוד
@@ -132,12 +122,8 @@ while cap.isOpened():
         cv2.putText(frame, "Game Window Not Found", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-    display_frame = resize_to_fit(frame, max_width=1280, max_height=720)
-
-    cv2.imshow("Game Detection System", display_frame)
-
-    print("original:", frame.shape, "display:", display_frame.shape)
-    print(frame.shape)
+    # הצגת הפריים עם הסימונים
+    cv2.imshow("Game Detection System", frame)
 
     # יציאה בלחיצה על המקש 'q'
     if cv2.waitKey(1) & 0xFF == ord('q'):

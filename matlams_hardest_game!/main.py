@@ -179,6 +179,8 @@ def main():
                 if e.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
                     go_menu()
 
+
+
         # --- update ---------------------------------------------------------
         if state == "playing":
             keys = pygame.key.get_pressed()
@@ -290,6 +292,8 @@ def get_text():
 
 def get_info(origin, frame, screen_type):
     return
+
+
 
 
 if __name__ == "__main__":
