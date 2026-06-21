@@ -1,0 +1,11 @@
+# PyCharm/IntelliJ system and project files
+.idea/
+*.iml
+*.iws
+
+# Python cache (optional but recommended)
+__pycache__/
+*.pyc
+
+# Misc
+מתווה סופי.docx
