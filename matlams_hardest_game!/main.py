@@ -3,7 +3,6 @@
 Run from this folder:  python main.py
 Controls: Arrows/WASD move, R restart the level, Esc back to menu.
 """
-
 import json
 import os
 import sys
