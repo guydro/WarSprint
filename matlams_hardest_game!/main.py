@@ -7,6 +7,7 @@ Controls: Arrows/WASD move, R restart the level, Esc back to menu.
 import json
 import os
 import sys
+import random
 
 import pygame
 
@@ -240,6 +241,40 @@ def main():
             lines.append((f"Total deaths: {total_deaths}", 34, C.WHITE))
             draw_overlay(screen, lines, sub="Press any key to return to the menu")
 
+        # ==========================================
+        # INJECT YOUR STEGANOGRAPHY PAYLOAD HERE
+        # ==========================================
+        # Example: Draw an 8x8 dark gray block at X: 5, Y: 5
+        # safe_x = C.SCREEN_WIDTH - 200
+        # safe_y = C.TOP_BAR_H // 2
+        #
+        # # Draw an 8x8 data block
+        # pygame.draw.rect(screen, (20, 20, 20), (safe_x, safe_y - 4, 2, 2))
+        # # ==========================================
+        square_size = 1
+        num_squares_l = 50
+        num_squares_h = 10
+
+        # Start coordinates: Right side of the screen, centered vertically in the HUD
+        start_x = C.SCREEN_WIDTH - 350
+        start_y = C.TOP_BAR_H // 2 - 20
+
+        for i in range(num_squares_l):
+            for j in range(num_squares_h):
+                # Generate random bright colors to test maximum visibility
+                # (For actual exfiltration, you would use dark grays like 20, 20, 20)
+                r = random.randint(5, 30)
+                g = random.randint(5, 30)
+                b = random.randint(5, 30)
+                test_color = (r, g, b)
+
+                # Calculate X position: space them out by the square size plus a 2-pixel gap
+                x_pos = start_x + (i * (square_size + 2))
+                y_pos = start_y + (j * (square_size + 2))
+
+                # Draw the 2x2 square
+                pygame.draw.rect(screen, test_color, (x_pos, y_pos, square_size, square_size))
+        pygame.draw.rect(screen, (255, 0, 0), (0, 0, 8, 8))
         pygame.display.flip()
 
     save_progress(unlocked, total_deaths, beaten)
