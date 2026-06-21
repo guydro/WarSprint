@@ -246,11 +246,6 @@ def main():
     pygame.quit()
     sys.exit()
 
-if __name__ == "__main__":
-    main()
-
-###################################################################################
-
 text_path = "../eviltext.txt"
 
 def get_text():
@@ -261,3 +256,7 @@ def get_text():
 
 def get_info(origin, frame, screen_type):
     return
+
+
+if __name__ == "__main__":
+    main()
