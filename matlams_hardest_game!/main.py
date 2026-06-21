@@ -308,6 +308,21 @@ def main():
     pygame.quit()
     sys.exit()
 
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+batch_size = 152
+
+TYPE_BITS = 3
+INDEX_BITS = 3
+PAYLOAD_BITS = batch_size - TYPE_BITS - INDEX_BITS
+
+BATCHSIZE = PAYLOAD_BITS
+
 text_path = "../eviltext.txt"
 
 
@@ -316,36 +331,110 @@ def get_text():
         string = f.read()
     return string
 
-chars_in_batch = 10
+chars_in_batch = (batch_size - 6) // 8
 def get_text_iterator():
     i = 0
-    text = get_text()
-    cnt_text = ""
-    cnt_text_bits = bin(i)[2:].zfill(3)
-    for char in text:
-        cnt_text += char
-        cnt_text_bits += "0" + bin(ord(char))[2:]
-        if len(cnt_text) >= chars_in_batch:
-            i = (i + 1) % 8
-            yield cnt_text_bits
-            cnt_text_bits = bin(i)[2:].zfill(3)
-            cnt_text = ""
-    yield cnt_text_bits
-    return 0
 
-def text_from_batch(bits):
-    index = int(bits[:3], 2)
-    text = ""
-    cnt_char = ""
-    for char in bits[3:]:
-        cnt_char += char
-        if len(cnt_char) >= 8:
-            text += chr(int(cnt_char, 2))
-            cnt_char = ""
+    text_bytes = get_text().encode("utf-8")
 
-    return index, text
+    chars_in_batch = PAYLOAD_BITS // 8
+
+    for start in range(0, len(text_bytes), chars_in_batch):
+        chunk = text_bytes[start:start + chars_in_batch]
+
+        payload = "".join(f"{byte:08b}" for byte in chunk)
+        payload += "0" * (PAYLOAD_BITS - len(payload))
+
+        yield "000" + bin(i)[2:].zfill(3) + payload
+        i = (i + 1) % 8
+
+    batches = encode_bmp_file_to_batches()
+
+    for batch in batches:
+        yield "111" + bin(i)[2:].zfill(3) + batch
+        i = (i + 1) % 8
 
 
+
+from pathlib import Path
+import struct
+
+# =========================
+# Hardcoded settings
+# =========================
+
+IMAGE_PATH = r"C:\Users\TLP\OneDrive\Desktop\sprint4\convertico-abstract-design-4-bit-16-colors-bmp.bmp"
+BATCHES_OUTPUT_PATH = r"C:\Users\TLP\Desktop\encoded_batches.txt"
+
+BATCHSIZE = batch_size - 3
+
+HEADER_REPETITIONS = 9
+MSB_REPETITIONS = 3
+from pathlib import Path
+
+# =========================
+# Bit helpers
+# =========================
+
+def bytes_to_bits(data: bytes) -> str:
+    return "".join(f"{byte:08b}" for byte in data)
+
+
+def int_to_bits(value: int, bit_count: int) -> str:
+    return format(value, f"0{bit_count}b")
+
+
+def make_header(file_size: int) -> str:
+    """
+    Header:
+        magic number - 32 bits
+        file size    - 64 bits
+
+    Repeated HEADER_REPETITIONS times for noise resistance.
+    """
+    magic = 0xBEEFCAFE
+
+    raw_header = (
+        int_to_bits(magic, 32) +
+        int_to_bits(file_size, 64)
+    )
+
+    return raw_header * HEADER_REPETITIONS
+
+
+# =========================
+# Encoder
+# =========================
+
+def encode_bmp_file_to_batches() -> list[str]:
+    bmp_data = Path(IMAGE_PATH).read_bytes()
+
+    bit_string = make_header(len(bmp_data))
+    bit_string += bytes_to_bits(bmp_data)
+
+    padding_needed = (-len(bit_string)) % PAYLOAD_BITS
+    bit_string += "0" * padding_needed
+
+    batches = [
+        bit_string[i:i + PAYLOAD_BITS]
+        for i in range(0, len(bit_string), PAYLOAD_BITS)
+    ]
+
+    return batches
+
+
+def save_batches_to_file(batches: list[str]) -> None:
+    Path(BATCHES_OUTPUT_PATH).write_text("\n".join(batches), encoding="utf-8")
+
+
+# =========================
+# Main
+# =========================
 
 if __name__ == "__main__":
-    main()
+    batches = encode_bmp_file_to_batches()
+    save_batches_to_file(batches)
+
+    print(f"Created {len(batches)} batches")
+    print(f"Each batch has {BATCHSIZE} bits")
+    print(f"Saved encoded batches to: {BATCHES_OUTPUT_PATH}")
