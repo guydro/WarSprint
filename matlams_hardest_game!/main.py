@@ -431,8 +431,8 @@ import struct
 # Hardcoded settings
 # =========================
 
-IMAGE_PATH = r"C:\Users\TLP\OneDrive\Desktop\sprint4\convertico-abstract-design-4-bit-16-colors-bmp.bmp"
-BATCHES_OUTPUT_PATH = r"C:\Users\TLP\Desktop\encoded_batches.txt"
+IMAGE_PATH = r"..\convertico-abstract-design-4-bit-16-colors-bmp.bmp"
+BATCHES_OUTPUT_PATH = r"..\encoded_batches.txt"
 
 BATCHSIZE = batch_size - 3
 
