@@ -1,5 +1,15 @@
 import cv2
-import numpy as np
+
+def resize_to_fit(img, max_width=1280, max_height=720):
+    h, w = img.shape[:2]
+
+    scale = min(max_width / w, max_height / h, 1.0)
+
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+
+    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    return resized
 
 # =========================================================================
 # שלב 1: הגדרות נתיבים, קבצים ופרמטרים של המשחק
@@ -122,8 +132,12 @@ while cap.isOpened():
         cv2.putText(frame, "Game Window Not Found", (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-    # הצגת הפריים עם הסימונים
-    cv2.imshow("Game Detection System", frame)
+    display_frame = resize_to_fit(frame, max_width=1280, max_height=720)
+
+    cv2.imshow("Game Detection System", display_frame)
+
+    print("original:", frame.shape, "display:", display_frame.shape)
+    print(frame.shape)
 
     # יציאה בלחיצה על המקש 'q'
     if cv2.waitKey(1) & 0xFF == ord('q'):
