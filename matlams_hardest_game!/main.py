@@ -246,9 +246,14 @@ def main():
     pygame.quit()
     sys.exit()
 
+path = "../eviltext.txt"
 
 def get_info():
-    return "hi"
+    with open(path, "r") as f:
+        string = f.read()
+    return string
+
+print(get_info())
 
 if __name__ == "__main__":
     main()
