@@ -8,7 +8,7 @@ from pathlib import Path
 DECODED_OUTPUT_PATH = r"..\convertico-abstract-design-4-bit-16-colors-bmp-decoded.bmp"
 BATCHES_INPUT_PATH = r"..\encoded_batches.txt"
 
-BATCH_SIZE = 152
+BATCH_SIZE = 175
 
 TYPE_BITS = 3
 INDEX_BITS = 3
@@ -29,7 +29,7 @@ def get_output_from_bits(bits_list):
     image_bits = []
 
     for bits in bits_list:
-        bits = bits.strip()
+        bits = "".join([str(num) for num in bits]).strip()
 
         if len(bits) != BATCH_SIZE:
             continue

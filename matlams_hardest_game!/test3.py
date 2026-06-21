@@ -76,8 +76,14 @@ def detect_corner(frame, template_gray):
 
     return (final_x, final_y)
 
-def extract_bit_matrix(mask, rows=5, cols=32):
 
+
+
+def extract_bit_matrix(mask, rows=5, cols=32):
+    """
+    ממיר את ה-mask למטריצה של ביטים.
+    הנחת עבודה: ה-mask הוא תמונה בינארית (0 או 255).
+    """
     height, width = mask.shape
     matrix = []
 
@@ -99,6 +105,34 @@ def extract_bit_matrix(mask, rows=5, cols=32):
                 matrix.append(0)
 
     return matrix
+
+
+def find_red_origin(frame):
+    """
+    Scans the frame for the 8x8 red calibration square to set the (0,0) origin.
+    Uses HSV color space to bypass OBS H.264 color smearing.
+    """
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    lower_red_1 = np.array([0, 100, 100])
+    upper_red_1 = np.array([10, 255, 255])
+    mask1 = cv2.inRange(hsv, lower_red_1, upper_red_1)
+
+    lower_red_2 = np.array([160, 100, 100])
+    upper_red_2 = np.array([180, 255, 255])
+    mask2 = cv2.inRange(hsv, lower_red_2, upper_red_2)
+
+    red_mask = mask1 + mask2
+
+    contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if 4 <= w <= 15 and 4 <= h <= 15:
+            return x, y
+
+    return None, None
+
 
 def scan_video_with_dynamic_origin(video_path, start_x, start_y):
     cap = cv2.VideoCapture(video_path)
@@ -143,8 +177,8 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
         data_abs_x = origin_x + start_x
         data_abs_y = origin_y + start_y
 
-        SEARCH_WIDTH = 235
-        SEARCH_HEIGHT = 33
+        SEARCH_WIDTH = 250
+        SEARCH_HEIGHT = 50
 
         roi_y_start = data_abs_y - 10
         roi_y_end = data_abs_y + SEARCH_HEIGHT
@@ -189,7 +223,7 @@ def scan_video_with_dynamic_origin(video_path, start_x, start_y):
 
             #cv2.imshow("Target Data Region (Averaged)", roi_display)
             cv2.imshow("Red Mask View (Averaged)", mask)
-            binary_matrix = extract_bit_matrix(mask, rows=5, cols=32)
+            binary_matrix = extract_bit_matrix(mask, rows=5, cols=35)
             print(binary_matrix)
             all_batches.append(binary_matrix)
 
@@ -213,9 +247,9 @@ get_image.get_output_from_bits(all_batches)
 # ========================================================
 # CONFIGURATION
 # ========================================================
-VIDEO_FILE = "vid25.mp4"
-RELATIVE_START_X = 1024 - 173
-RELATIVE_START_Y = 10
+VIDEO_FILE = "vid23.mp4"
+RELATIVE_START_X = 1024 - 180
+RELATIVE_START_Y = 0
 
 scan_video_with_dynamic_origin(VIDEO_FILE, RELATIVE_START_X, RELATIVE_START_Y)
 

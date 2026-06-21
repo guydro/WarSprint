@@ -6,8 +6,6 @@ Controls: Arrows/WASD move, R restart the level, Esc back to menu.
 import json
 import os
 import sys
-import random
-import struct
 from pathlib import Path
 
 import pygame
@@ -24,7 +22,7 @@ text_path = "../eviltext.txt"
 # ==========================================
 # PAYLOAD DATA & ENCODING SETTINGS
 # ==========================================
-batch_size = 152
+batch_size = 175
 TYPE_BITS = 3
 INDEX_BITS = 3
 PAYLOAD_BITS = batch_size - TYPE_BITS - INDEX_BITS
