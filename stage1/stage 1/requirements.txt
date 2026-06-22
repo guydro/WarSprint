@@ -1,0 +1,12 @@
+setuptools==80.9.0
+shapely>=2.0.6
+networkx~=2.4
+dash~=2.6.0
+dash-auth~=1.4.1
+dash-extensions~=0.0.65
+plotly~=5.9.0
+cryptography
+flask==2.2.5
+tqdm~=4.47.0
+requests~=2.24.0
+markupsafe>=2.1.5

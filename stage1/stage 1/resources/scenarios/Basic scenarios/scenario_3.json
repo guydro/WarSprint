@@ -1,0 +1,31 @@
+{
+  "source": [
+    0,
+    0
+  ],
+  "targets": [
+    [
+      10,
+      10
+    ]
+  ],
+  "asteroids_zones": [],
+  "black_holes": [
+    {
+      "center": [
+        2,
+        4
+      ],
+      "radius": 2
+    },
+    {
+      "center": [
+        8,
+        6
+      ],
+      "radius": 2
+    }
+  ],
+  "radars": [],
+  "allowed-detection": 0
+}
