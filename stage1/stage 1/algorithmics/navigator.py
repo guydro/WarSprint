@@ -6,7 +6,6 @@ from algorithmics.enemy.enemy import Enemy
 from algorithmics.utils.coordinate import Coordinate
 
 import calculate_path_module
-import navigator
 
 
 def calculate_path(source: Coordinate, target: Coordinate, enemies: List[Enemy]) -> Tuple[List[Coordinate], nx.Graph]:

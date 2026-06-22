@@ -4,6 +4,8 @@ import networkx as nx
 
 
 def calculate_path(start_coord, end_coord, enemies):
+    start_coord = (start_coord.x, start_coord.y)
+    end_coord = (end_coord.x, end_coord.y)
     start = a_star_coord(start_coord)
     start.heuristics = euclidian_dist(start_coord, end_coord)
     start.cost = 0
@@ -16,7 +18,7 @@ def calculate_path(start_coord, end_coord, enemies):
     closedList = {}
 
     while len(openList) > 0:
-        current = heapq.heappop(openList)
+        current = heapq.heappop(openList)[1]
 
         if current.coord == end_coord:
             return construct_path(current)
@@ -33,7 +35,7 @@ def calculate_path(start_coord, end_coord, enemies):
                 neighbor_object.f = neighbor_object.heuristics + neighbor_object.cost
 
                 heapq.heappush(openList, (-neighbor_object.f, neighbor_object))
-                openList.append(neighbor)
+                openListCoords.add(neighbor)
 
     default_path = [start_coord, (start_coord[0], 50), (end_coord[0], 50), end_coord]
     return default_path, create_path_graph_from_coords(default_path)
@@ -58,11 +60,13 @@ class a_star_coord:
 
         return neighbors
 
+
+
 def construct_path(node):
     lst = [node.coord]
     while node.parent is not None:
         node = node.parent
-        lst.append(node.coord)
+        lst.append(node.getCoordObject)
     path = lst[::-1]
     return path, create_path_graph_from_coords(path)
 
