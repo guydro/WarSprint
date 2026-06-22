@@ -5,7 +5,7 @@ import networkx as nx
 from algorithmics.enemy.enemy import Enemy
 from algorithmics.utils.coordinate import Coordinate
 
-import calculate_path
+import calculate_path_module
 import navigator
 
 
@@ -24,6 +24,6 @@ def calculate_path(source: Coordinate, target: Coordinate, enemies: List[Enemy])
     # possible path you can calculate from source to target.
     #
     # Note that to be accepted, the returned path must not be detected by the bandits at any point!
+    path, graph = calculate_path_module.calculate_path(source, target, enemies)
 
-
-    return [source, target], nx.Graph()
+    return path, graph

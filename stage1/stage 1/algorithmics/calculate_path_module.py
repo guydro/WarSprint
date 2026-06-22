@@ -35,7 +35,8 @@ def calculate_path(start_coord, end_coord, enemies):
                 heapq.heappush(openList, (-neighbor_object.f, neighbor_object))
                 openList.append(neighbor)
 
-    return (start_coord, (start_coord[0], 50), (end_coord[0], 50), end_coord)
+    default_path = [start_coord, (start_coord[0], 50), (end_coord[0], 50), end_coord]
+    return default_path, create_path_graph_from_coords(default_path)
 
 class a_star_coord:
     def __init__(self, coord: tuple[int, int]):
@@ -62,7 +63,8 @@ def construct_path(node):
     while node.parent is not None:
         node = node.parent
         lst.append(node.coord)
-    return lst[::-1]
+    path = lst[::-1]
+    return path, create_path_graph_from_coords(path)
 
 def euclidian_dist(coord1: tuple[int, int], coord2) -> int:
     x = coord2[0] - coord1[0]
@@ -71,7 +73,18 @@ def euclidian_dist(coord1: tuple[int, int], coord2) -> int:
     return dist
 
 def have_valid_path(coord1, coord2, enemies):
-    return True
+    from shapely.geometry import Polygon
+    def cross(line, enemies):
+        for i in enemies:
+            if isinstance(i, BlackHole):
+                # salomons
+                return True
+
+            if isinstance(i, AsteroidsZone):
+                polygon = Polygon(i.boundary)
+                if polygon.intersects(line):
+                    return True
+        return False
 
 def create_path_graph_from_coords(coords):
     G = nx.Graph()
