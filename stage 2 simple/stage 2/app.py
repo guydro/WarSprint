@@ -1,4 +1,5 @@
 import json
+import json
 import os
 import re
 import time
@@ -19,6 +20,7 @@ from algorithmics.assets.generate_scatter import generate_path_scatters, generat
 from algorithmics.enemy.asteroids_zone import AsteroidsZone
 from algorithmics.enemy.black_hole import BlackHole
 from algorithmics.enemy.enemy import Enemy
+from algorithmics.enemy.radar import Radar
 from algorithmics.navigator import calculate_path
 from algorithmics.utils.coordinate import Coordinate
 
@@ -107,6 +109,10 @@ app.layout = html.Div([
                           value=[],
                           style={'font-family': 'Courier New', 'font-weight': 'bold', 'margin-top': '5px',
                                  'margin-bottom': '5px', 'color': '#ffffff', 'display': 'inline-block'}),
+            html.Div(id='allowed-detection', children='Allowed detection: 0 miles',
+                     style={'font-family': 'Courier New', 'font-weight': 'bold', 'margin-top': '5px',
+                            'margin-bottom': '5px', 'margin-left': 'auto', 'color': '#e61010',
+                            'display': 'inline-block'}),
         ],
         style={'display': 'flex'}
     ),
@@ -146,20 +152,23 @@ def _parse_coordinate(values: List[float]) -> Coordinate:
     return Coordinate(values[0], values[1])
 
 
-def _load_scenario(scenario_path: str) -> tuple[Coordinate, list[Coordinate], list[Enemy]]:
+def _load_scenario(scenario_path: str) -> Tuple[Coordinate, List[Coordinate], float, List[Enemy]]:
     with open(scenario_path, 'r') as f:
         raw_scenario = json.load(f)
 
     # Parse scenario JSON
     source = _parse_coordinate(raw_scenario['source'])
     targets = [_parse_coordinate(target) for target in raw_scenario['targets']]
+    allowed_detection = raw_scenario['allowed-detection']
     enemies: List[Enemy] = []
     enemies += [BlackHole(_parse_coordinate(hole['center']), hole['radius'])
                 for hole in raw_scenario['black_holes']]
     enemies += [AsteroidsZone([_parse_coordinate(c) for c in raw_zone['boundary']])
                 for raw_zone in raw_scenario['asteroids_zones']]
+    enemies += [Radar(_parse_coordinate(raw_radar['center']), raw_radar['radius'])
+                for raw_radar in raw_scenario['radars']]
 
-    return source, targets, enemies
+    return source, targets, allowed_detection, enemies
 
 
 @app.callback(Output('scenario-dropdown', 'options'),
@@ -179,13 +188,14 @@ def reset_path_panel(scenario: str) -> Optional[str]:
 
 
 @app.callback(Output('graph', 'figure'),
+              Output('allowed-detection', 'children'),
               Input('scenario-dropdown', 'value'),
               Input('path-store', 'data'),
               Input('edges-store', 'data'),
               Input('graph-toggle', 'value'))
 def update_map(scenario_path: str, path: List[Tuple[float, float]],
-               edges: List[Tuple[float, float, float, float]], graph_on: str) -> go.Figure:
-    source, targets, enemies = _load_scenario(scenario_path)
+               edges: List[Tuple[float, float, float, float]], graph_on: str) -> Tuple[go.Figure, str]:
+    source, targets, allowed_detection, enemies = _load_scenario(scenario_path)
 
     # If only scenario was changed, path and graph are empty
     if dash.callback_context.triggered[0]['prop_id'].split('.')[0] == 'scenario-dropdown':
@@ -198,7 +208,7 @@ def update_map(scenario_path: str, path: List[Tuple[float, float]],
 
     data = generate_all_scenario_scatters(source, targets, enemies) + \
            generate_path_scatters(draw_path, color='#cccccc') + edges_scatter
-    return go.Figure(data=data, layout=generate_graph_layout())
+    return go.Figure(data=data, layout=generate_graph_layout()), f'Allowed detection: {allowed_detection} miles'
 
 
 @app.callback(Output('path-store', 'data'),
@@ -209,13 +219,12 @@ def update_map(scenario_path: str, path: List[Tuple[float, float]],
               prevent_initial_call=True)
 def run_button_n_clicks_changed(n_clicks: int, scenario_path: str) -> \
         Tuple[List[Tuple[float, float]], List[Tuple[float, ...]], float]:
-    source, targets, enemies = _load_scenario(scenario_path)
+    source, targets, allowed_detection, enemies = _load_scenario(scenario_path)
 
     # Dash doesn't support custom return types from callbacks, so we convert the path into a list of tuples
     start_time = time.time()
-    path, graph = calculate_path(source, targets[0], enemies)
+    path, graph = calculate_path(source, targets, enemies, allowed_detection)
     calculation_time = time.time() - start_time
-
     return [(c.x, c.y) for c in path], [(edge[0].x, edge[0].y, edge[1].x, edge[1].y) for edge in
                                         graph.edges], calculation_time
 

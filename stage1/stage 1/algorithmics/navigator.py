@@ -24,5 +24,4 @@ def calculate_path(source: Coordinate, target: Coordinate, enemies: List[Enemy])
     #
     # Note that to be accepted, the returned path must not be detected by the bandits at any point!
     path, graph = calculate_path_module.calculate_path(source, target, enemies)
-
     return path, graph
